@@ -89,3 +89,15 @@ resource "aws_cloudwatch_metric_alarm" "ds-operations" {
         InstanceId      = "${element(aws_instance.ds-operations.*.id, count.index)}"
     }
 }
+
+output "image_id" {
+    value = "${data.aws_ami.amazon_linux.id}"
+}
+
+output "id" {
+  value       = ["${aws_instance.ursa-contextual-bandit.id}"]
+}
+
+output "private_ip" {
+  value       = ["${aws_instance.ursa-contextual-bandit.private_ip}"]
+}
