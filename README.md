@@ -3,7 +3,7 @@
 - creates EC2 instance(s)
 - creates volumes of selected sizes and mounts to /storage
 - applies reboot cloudwatch for hung states
-- create cloudwatch for /storage /root and CPU utilization (must use Lambda function)
+- creates cloudwatch for /storage /root and CPU utilization (must use Lambda function)
 
 Edit appropriate `*.tfvars` file.
 
