@@ -16,4 +16,5 @@ if (( $? != 0 )); then
 fi
 
 terraform workspace select ${1}-${2}-${3}
+#terraform apply -auto-approve -var-file=${2}-${3}.tfvars -var aws_region=${3} -var tag_name=${1} -var tag_env=${2} -var inventory_code=${1} -var key_path=${HOME}/.ssh/DS-OPS.pem
 terraform apply -auto-approve -var-file=${2}-${3}.tfvars -var aws_region=${3} -var tag_name=${1} -var tag_env=${2} -var inventory_code=${1}

@@ -3,21 +3,58 @@ variable "inventory_code" {}
 variable "aws_region" {}
 variable "instance_type" {}
 variable "key_name" {}
-variable "vpc_security_group_ids" {}
-variable "subnet_id" {}
+variable "security_group" {}
 variable "iam_instance_profile" {}
 variable "tag_env" {}
 variable "tag_name" {}
 variable "count" {}
-variable "vol_size" {}
-variable "availability_zone" {}
+variable "root_vol_size" {}
+variable "storage_vol_size" {}
 variable "key_path" {}
+variable "vpc" {}
 
-data "aws_caller_identity" "current" {}
+variable "vpc_name_to_id" {
+  type    = "map"
+
+  default = {
+    "DATASCIENCES-DEV-EAST" = "vpc-1bab5a7f"
+    "DATASCIENCES-EAST" = "vpc-4c160f29"
+    "DATASCIENCES-DEV-WEST" = "vpc-c70a7ca2"
+    "DATASCIENCES-WEST" = "vpc-422f4b27"
+  }
+}
+
+variable "vpc_id_to_name" {
+  type    = "map"
+  default = {
+    "vpc-1bab5a7f" = "PRIV-*-DATASCIENCES-DEV-*"
+    "vpc-4c160f29" = "PRIV-*-DATASCIENCES-*"
+    "vpc-c70a7ca2" = "PRIV-*-DATASCIENCES-DEV-*"
+    "vpc-422f4b27" = "PRIV-*-DATASCIENCES-*"
+  }
+}
+
+
+
+locals {
+  vpc_name = "${lookup(var.vpc_name_to_id, var.vpc)}"
+}
+
+
 
 provider "aws" {
   region = "${var.aws_region}"
 }
+
+
+
+terraform {
+  backend "s3" {}
+}
+
+
+
+data "aws_caller_identity" "current" {}
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -26,7 +63,7 @@ data "aws_ami" "amazon_linux" {
     name = "name"
 
     values = [
-      "amzn-ami-hvm-*-x86_64-gp2",
+      "amzn2-ami-hvm-*-x86_64-gp2",
     ]
   }
 
@@ -37,6 +74,33 @@ data "aws_ami" "amazon_linux" {
       "amazon",
     ]
   }
+}
+
+data "aws_subnet_ids" "private" {
+  vpc_id = "${lookup(var.vpc_name_to_id, var.vpc)}"
+
+  filter {
+    name = "tag:Name"
+
+    values = [
+      "${lookup(var.vpc_id_to_name, local.vpc_name)}",
+    ]
+  }
+}
+
+data "aws_security_group" "name" {
+  vpc_id = "${lookup(var.vpc_name_to_id, var.vpc)}"
+
+  filter {
+    name = "tag:Name"
+
+    values = [
+      "${var.security_group}",
+    ]
+  }
+
+  depends_on = ["aws_security_group.allow_all"]
+
 }
 
 data "terraform_remote_state" "network" {
@@ -50,45 +114,84 @@ data "terraform_remote_state" "network" {
   }
 }
 
-terraform {
-  backend "s3" {}
-}
-
 data "template_file" "user_data" {
   template = "${file("user_data.sh")}"
 }
 
-resource "aws_ebs_volume" "ds-operations" {
-    availability_zone = "${var.availability_zone}"
-    size 	      = "${var.vol_size}"
-    type 	      = "gp2"
-    count 	      = "${var.count}"
+
+
+resource "aws_security_group" "allow_all" {
+
+  name        = "${var.security_group}"
+  description = "${var.security_group}"
+  vpc_id      = "${lookup(var.vpc_name_to_id, var.vpc)}"
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
 
   tags {
-    Name 	  = "${var.tag_name}"
+    Name          = "${var.security_group}"
     ProductCode   = "${var.prd_code}"
     InventoryCode = "${var.inventory_code}"
     Environment   = "${var.tag_env}"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
 }
 
-resource "aws_volume_attachment" "ds-operations" {
-    device_name = "/dev/xvdf"
-    count 	= "${var.count}"
-    volume_id 	= "${element(aws_ebs_volume.ds-operations.*.id, count.index)}"
-    instance_id = "${element(aws_instance.ds-operations.*.id, count.index)}"
+resource "null_resource" "ds-operations" {
+    count = "${var.count}"
+
+provisioner "remote-exec" {
+    when   = "destroy"
+    inline = [
+      "sudo umount /mnt/store01"
+    ]
+
+connection {
+     user       = "ec2-user"
+     host       = "${element(aws_instance.ds-operations.*.private_ip, count.index)}"
+     private_key = "${file("${var.key_path}")}"
+    }
+  }
 }
 
 resource "aws_instance" "ds-operations" {
   ami 			 = "${data.aws_ami.amazon_linux.id}"
   instance_type          = "${var.instance_type}"
-  subnet_id              = "${var.subnet_id}"
+  subnet_id              = "${element(data.aws_subnet_ids.private.ids, count.index)}"
   key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${var.vpc_security_group_ids}"]
+  vpc_security_group_ids = ["${data.aws_security_group.name.id}"]
   iam_instance_profile   = "${var.iam_instance_profile}"
   user_data              = "${data.template_file.user_data.rendered}"
   count 		 = "${var.count}"
-  availability_zone	 = "${var.availability_zone}"
+
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = "${var.root_vol_size}"
+    delete_on_termination = "true"
+  }
+
+  ebs_block_device {
+    device_name 	  = "/dev/xvdf"
+    volume_size 	  = "${var.storage_vol_size}"
+    volume_type 	  = "gp2"
+    delete_on_termination = "true"
+  }
 
   tags {
     Name          = "${var.tag_name}-${var.tag_env}"
@@ -105,23 +208,6 @@ resource "aws_instance" "ds-operations" {
   }
 }
 
-resource "null_resource" "ds-operations" {
-    count = "${var.count}"
-
-provisioner "remote-exec" {
-    when   = "destroy"
-    inline = [
-      "sudo umount /storage"
-    ]
-
-connection {
-     user 	 = "ec2-user"
-     host 	 = "${element(aws_instance.ds-operations.*.private_ip, count.index)}"
-     private_key = "${file("${var.key_path}")}"
-    }
-  }
-}
-
 resource "aws_cloudwatch_metric_alarm" "recovery" {
     alarm_name          = "${element(aws_instance.ds-operations.*.id, count.index)}-recovery"
     comparison_operator = "GreaterThanOrEqualToThreshold"
@@ -133,7 +219,7 @@ resource "aws_cloudwatch_metric_alarm" "recovery" {
     threshold           = "1.0"
     alarm_description   = "EC2 Recovery Alarm"
     count 	 	= "${var.count}"
-    alarm_actions       = ["arn:aws:automate:us-east-1:ec2:recover"]
+    alarm_actions       = ["arn:aws:automate:${var.aws_region}:ec2:recover"]
       dimensions {
         InstanceId      = "${element(aws_instance.ds-operations.*.id, count.index)}"
     }
@@ -165,8 +251,8 @@ resource "aws_cloudwatch_metric_alarm" "disk_usage_root" {
     namespace           = "System/Linux"
     period 		= "300"
     statistic 		= "Average"
-    threshold 		= "70.0"
-    alarm_description 	= "Root filesystem over 70%"
+    threshold 		= "80.0"
+    alarm_description 	= "Root filesystem over 80%"
     count 	 	= "${var.count}"
     alarm_actions 	= ["${aws_sns_topic.health_updates.arn}"]
     ok_actions 		= ["${aws_sns_topic.health_updates.arn}"]
@@ -185,15 +271,15 @@ resource "aws_cloudwatch_metric_alarm" "disk_usage_storage" {
     namespace           = "System/Linux"
     period              = "300"
     statistic           = "Average"
-    threshold           = "70.0"
-    alarm_description   = "Storage filesystem over 70%"
+    threshold           = "80.0"
+    alarm_description   = "Storage filesystem over 80%"
     count               = "${var.count}"
     alarm_actions      	= ["${aws_sns_topic.health_updates.arn}"]
     ok_actions         	= ["${aws_sns_topic.health_updates.arn}"]
       dimensions {
          Filesystem = "/dev/xvdf"
          InstanceId = "${element(aws_instance.ds-operations.*.id, count.index)}"
-         MountPath = "/storage"
+         MountPath = "/mnt/store01"
     }
 }
 
