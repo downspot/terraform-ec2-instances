@@ -57,7 +57,7 @@ terraform {
 data "aws_caller_identity" "current" {}
 
 data "aws_ami" "amazon_linux" {
-  most_recent = true
+  most_recent = "true"
 
   filter {
     name = "name"
@@ -148,7 +148,7 @@ resource "aws_security_group" "allow_all" {
   }
 
   lifecycle {
-    create_before_destroy = true
+    create_before_destroy = "true"
   }
 
 }

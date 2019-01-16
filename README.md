@@ -1,7 +1,6 @@
 ## ec2-instance 
 
 
-
 Edit or create appropriate `*.tfvars` file formatting as follows:
 
 ```
@@ -23,7 +22,6 @@ File name formatting corresponds to environment, adjust accordingly:
 dev-us-east-1.tfvars 
 
 
-
 Deploy with:
 
 `./deploy.sh <app name> <dev|preprod|prod> <us-east-1|us-west-2>`
@@ -35,3 +33,10 @@ Destroy with:
 Show with:
 
 `./show.sh <app name> <dev|preprod|prod> <us-east-1|us-west-2>`
+
+
+### Notes
+
+local ssh-agent must be running for remote execution on destroy
+
+only one attached EBS volume mounted at `/dev/xvdf /mnt/store01`
