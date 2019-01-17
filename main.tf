@@ -26,6 +26,7 @@ variable "vpc_name_to_id" {
 
 variable "vpc_id_to_name" {
   type    = "map"
+
   default = {
     "vpc-1bab5a7f" = "PRIV-*-DATASCIENCES-DEV-*"
     "vpc-4c160f29" = "PRIV-*-DATASCIENCES-*"
