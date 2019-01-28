@@ -48,7 +48,7 @@ echo '*/5 * * * * root perl /opt/aws-scripts-mon/mon-put-instance-data.pl --mem-
 cat <<'EOF' >> /root/set_hostname.sh 
 #!/bin/sh 
 
-sudo host `ifconfig eth0 | grep inet | awk '{print $2}' | head -1` dns0000.ash1.datasciences.tmcs | tail -1 | awk '{print $5}' | sed s'/.$//' | xargs hostnamectl set-hostname
+sudo dig +short -x `GET http://169.254.169.254/latest/meta-data/local-ipv4` @dns0000.ash1.datasciences.tmcs | sed s'/.$//' | sudo xargs hostnamectl set-hostname
 sudo sed -i '/hostname/d' /etc/cloud/cloud.cfg
 EOF
 
