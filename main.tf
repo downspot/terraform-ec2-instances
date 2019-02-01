@@ -12,6 +12,7 @@ variable "root_vol_size" {}
 variable "storage_vol_size" {}
 variable "key_path" {}
 variable "vpc" {}
+variable "termination_protection" {}
 
 variable "vpc_name_to_id" {
   type    = "map"
@@ -172,14 +173,15 @@ connection {
 }
 
 resource "aws_instance" "ds-operations" {
-  ami 			 = "${data.aws_ami.amazon_linux.id}"
-  instance_type          = "${var.instance_type}"
-  subnet_id              = "${element(data.aws_subnet_ids.private.ids, count.index)}"
-  key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${data.aws_security_group.name.id}"]
-  iam_instance_profile   = "${var.iam_instance_profile}"
-  user_data              = "${data.template_file.user_data.rendered}"
-  count 		 = "${var.count}"
+  ami 			  = "${data.aws_ami.amazon_linux.id}"
+  instance_type           = "${var.instance_type}"
+  subnet_id               = "${element(data.aws_subnet_ids.private.ids, count.index)}"
+  key_name                = "${var.key_name}"
+  vpc_security_group_ids  = ["${data.aws_security_group.name.id}"]
+  iam_instance_profile    = "${var.iam_instance_profile}"
+  user_data               = "${data.template_file.user_data.rendered}"
+  count 		  = "${var.count}"
+  disable_api_termination = "${var.termination_protection}"
 
   root_block_device {
     volume_type           = "gp2"
