@@ -35,6 +35,10 @@ Show with:
 
 `./show.sh <app name> <dev|preprod|prod> <us-east-1|us-west-2>`
 
+Plan with:
+
+`./plan.sh <app name> <dev|preprod|prod> <us-east-1|us-west-2>`
+
 
 ### Notes
 
