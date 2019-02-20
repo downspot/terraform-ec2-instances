@@ -8,7 +8,7 @@ sleep 20
 
 DEVICE=/dev/$(lsblk -n | awk '$NF != "/" {print $1}' | grep -v xvda)
 FS_TYPE=$(file -s $DEVICE | awk '{print $2}')
-MOUNT_POINT=/mnt/store01
+MOUNT_POINT=/mnt/data
 
 # If no FS, then this output contains "data"
 if [ "$FS_TYPE" = "data" ]
@@ -17,7 +17,7 @@ then
     mkfs -t xfs $DEVICE
     mkdir $MOUNT_POINT
     echo "" >> /etc/fstab
-    echo "$DEVICE		/mnt/store01		xfs	rw,noatime 1 1" >> /etc/fstab 
+    echo "$DEVICE		/mnt/data		xfs	rw,noatime 1 1" >> /etc/fstab 
     mount -va 
 fi
 
@@ -40,7 +40,7 @@ cd /opt
 unzip CloudWatchMonitoringScripts-1.2.2.zip
 rm CloudWatchMonitoringScripts-1.2.2.zip
 
-echo '*/5 * * * * root perl /opt/aws-scripts-mon/mon-put-instance-data.pl --mem-util --disk-space-util --disk-path=/ --disk-path=/mnt/store01 >> /var/log/cwpump.log 2>&1' > /etc/cron.d/cwpump
+echo '*/5 * * * * root perl /opt/aws-scripts-mon/mon-put-instance-data.pl --mem-util --disk-space-util --disk-path=/ --disk-path=/mnt/data >> /var/log/cwpump.log 2>&1' > /etc/cron.d/cwpump
 
 
 # script for setting hostname

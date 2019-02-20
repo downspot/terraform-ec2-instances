@@ -44,4 +44,4 @@ Plan with:
 
 local ssh-agent must be running for remote execution on destroy
 
-only one attached EBS volume mounted at `/dev/xvdf /mnt/store01`
+only one attached EBS volume mounted at `/dev/xvdf /mnt/data`

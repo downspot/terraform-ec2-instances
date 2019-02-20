@@ -161,12 +161,12 @@ resource "null_resource" "ds-operations" {
 provisioner "remote-exec" {
     when   = "destroy"
     inline = [
-      "sudo umount /mnt/store01"
+      "sudo umount /mnt/data"
     ]
 
 connection {
-     user       = "ec2-user"
-     host       = "${element(aws_instance.ds-operations.*.private_ip, count.index)}"
+     user        = "ec2-user"
+     host        = "${element(aws_instance.ds-operations.*.private_ip, count.index)}"
      private_key = "${file("${var.key_path}")}"
     }
   }
@@ -282,7 +282,7 @@ resource "aws_cloudwatch_metric_alarm" "disk_usage_storage" {
       dimensions {
          Filesystem = "/dev/xvdf"
          InstanceId = "${element(aws_instance.ds-operations.*.id, count.index)}"
-         MountPath = "/mnt/store01"
+         MountPath = "/mnt/data"
     }
 }
 
@@ -304,6 +304,7 @@ resource "aws_lambda_permission" "with_sns" {
     principal 		= "sns.amazonaws.com"
     source_arn 		= "${aws_sns_topic.health_updates.arn}"
 }
+
 
 output "image_id" {
     value = "${data.aws_ami.amazon_linux.id}"
